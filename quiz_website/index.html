@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Single-File Quiz Maker</title>
+    <style>
+        /* CSS for the UI */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            width: 90%;
+            max-width: 600px;
+            text-align: center;
+        }
+        h1 {
+            color: #007bff;
+        }
+        .section {
+            margin-bottom: 2rem;
+        }
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            color: white;
+            background-color: #007bff;
+            transition: background-color 0.3s;
+        }
+        .btn:hover {
+            background-color: #0056b3;
+        }
+        .btn-secondary {
+            background-color: #6c757d;
+        }
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 0.75rem;
+            margin-bottom: 1rem;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+        .option-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+        .option-group input[type="text"] {
+            margin-right: 0.5rem;
+        }
+        .quiz-option {
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+        .correct-label {
+            color: #28a745;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div id="home-section" class="section">
+            <h1>Online Quiz Maker</h1>
+            <p>Create or take a quiz!</p>
+            <button class="btn" onclick="showSection('create-section')">Create Quiz</button>
+            <button class="btn" onclick="showSection('list-section')">Take Quiz</button>
+        </div>
+
+        <div id="create-section" class="section" style="display: none;">
+            <h2>Create a New Quiz</h2>
+            <input type="text" id="quiz-title-input" placeholder="Enter quiz title">
+            <div id="questions-container">
+                </div>
+            <button class="btn" onclick="addQuestion()">Add Question</button>
+            <button class="btn" onclick="saveQuiz()">Save Quiz</button>
+            <button class="btn btn-secondary" onclick="showSection('home-section')">Back</button>
+        </div>
+
+        <div id="list-section" class="section" style="display: none;">
+            <h2>Available Quizzes</h2>
+            <div id="quizzes-list">
+                <p>No quizzes available. Create one first!</p>
+            </div>
+            <button class="btn btn-secondary" onclick="showSection('home-section')">Back</button>
+        </div>
+
+        <div id="take-section" class="section" style="display: none;">
+            <h2 id="quiz-taking-title"></h2>
+            <div id="quiz-questions-display">
+                </div>
+            <button class="btn" onclick="submitQuiz()">Submit Quiz</button>
+            <button class="btn btn-secondary" onclick="showSection('list-section')">Back</button>
+        </div>
+
+        <div id="results-section" class="section" style="display: none;">
+            <h2>Quiz Results</h2>
+            <p id="final-score"></p>
+            <div id="correct-answers-display"></div>
+            <button class="btn btn-secondary" onclick="showSection('list-section')">Take another quiz</button>
+        </div>
+
+    </div>
+
+    <script>
+        // JavaScript for the quiz logic
+        let quizzes = [];
+        let currentQuizData = null;
+        let currentQuizIndex = 0;
+        let userAnswers = {};
+
+        function showSection(sectionId) {
+            document.querySelectorAll('.section').forEach(section => {
+                section.style.display = 'none';
+            });
+            document.getElementById(sectionId).style.display = 'block';
+        }
+
+        // --- Create Quiz Functions ---
+        function addQuestion() {
+            const container = document.getElementById('questions-container');
+            const questionIndex = container.children.length;
+
+            const questionDiv = document.createElement('div');
+            questionDiv.innerHTML = `
+                <hr>
+                <input type="text" placeholder="Question ${questionIndex + 1}" class="question-input">
+                <div class="options-container">
+                    <p>Options (check the correct one):</p>
+                    <div class="option-group">
+                        <input type="radio" name="correct-option-${questionIndex}" value="0">
+                        <input type="text" placeholder="Option A" class="option-input">
+                    </div>
+                    <div class="option-group">
+                        <input type="radio" name="correct-option-${questionIndex}" value="1">
+                        <input type="text" placeholder="Option B" class="option-input">
+                    </div>
+                    <div class="option-group">
+                        <input type="radio" name="correct-option-${questionIndex}" value="2">
+                        <input type="text" placeholder="Option C" class="option-input">
+                    </div>
+                    <div class="option-group">
+                        <input type="radio" name="correct-option-${questionIndex}" value="3">
+                        <input type="text" placeholder="Option D" class="option-input">
+                    </div>
+                </div>
+            `;
+            container.appendChild(questionDiv);
+        }
+
+        function saveQuiz() {
+            const title = document.getElementById('quiz-title-input').value.trim();
+            if (!title) {
+                alert('Please enter a quiz title.');
+                return;
+            }
+
+            const questions = [];
+            document.querySelectorAll('#questions-container > div').forEach((qDiv, qIndex) => {
+                const questionText = qDiv.querySelector('.question-input').value.trim();
+                const options = Array.from(qDiv.querySelectorAll('.option-input')).map(input => input.value.trim());
+                const correctOption = qDiv.querySelector(`input[name="correct-option-${qIndex}"]:checked`);
+                
+                if (questionText && options.every(opt => opt) && correctOption) {
+                    questions.push({
+                        question: questionText,
+                        options: options,
+                        correct: correctOption.value
+                    });
+                }
+            });
+
+            if (questions.length === 0) {
+                alert('Please add at least one valid question.');
+                return;
+            }
+
+            quizzes.push({ title: title, questions: questions });
+            alert('Quiz saved successfully!');
+            showSection('list-section');
+            renderQuizList();
+            resetCreateForm();
+        }
+
+        function resetCreateForm() {
+            document.getElementById('quiz-title-input').value = '';
+            document.getElementById('questions-container').innerHTML = '';
+            addQuestion(); // Start with one blank question
+        }
+
+        // --- Quiz Listing Functions ---
+        function renderQuizList() {
+            const listContainer = document.getElementById('quizzes-list');
+            listContainer.innerHTML = '';
+            if (quizzes.length === 0) {
+                listContainer.innerHTML = '<p>No quizzes available. Create one first!</p>';
+                return;
+            }
+            quizzes.forEach((quiz, index) => {
+                const quizItem = document.createElement('div');
+                quizItem.innerHTML = `<button class="btn" onclick="startQuiz(${index})">${quiz.title}</button>`;
+                listContainer.appendChild(quizItem);
+            });
+        }
+
+        // --- Quiz Taking Functions ---
+        function startQuiz(index) {
+            currentQuizData = quizzes[index];
+            currentQuizIndex = 0;
+            userAnswers = {};
+            document.getElementById('quiz-taking-title').textContent = currentQuizData.title;
+            showSection('take-section');
+            renderQuestion();
+        }
+
+        function renderQuestion() {
+            const displayContainer = document.getElementById('quiz-questions-display');
+            displayContainer.innerHTML = '';
+            
+            const question = currentQuizData.questions[currentQuizIndex];
+            const questionHtml = document.createElement('div');
+            questionHtml.innerHTML = `
+                <h3>${currentQuizIndex + 1}. ${question.question}</h3>
+                <div id="options-display">
+                    ${question.options.map((option, i) => `
+                        <label class="quiz-option">
+                            <input type="radio" name="q-${currentQuizIndex}" value="${i}"> ${option}
+                        </label>
+                    `).join('')}
+                </div>
+            `;
+            displayContainer.appendChild(questionHtml);
+            
+            // Add next/previous buttons
+            const navButtons = document.createElement('div');
+            if (currentQuizIndex > 0) {
+                navButtons.innerHTML += `<button class="btn" onclick="prevQuestion()">Previous</button>`;
+            }
+            if (currentQuizIndex < currentQuizData.questions.length - 1) {
+                navButtons.innerHTML += `<button class="btn" onclick="nextQuestion()">Next</button>`;
+            }
+            displayContainer.appendChild(navButtons);
+
+            // Load saved answer if it exists
+            if (userAnswers[currentQuizIndex] !== undefined) {
+                document.querySelector(`input[name="q-${currentQuizIndex}"][value="${userAnswers[currentQuizIndex]}"]`).checked = true;
+            }
+        }
+
+        function nextQuestion() {
+            saveAnswer();
+            if (currentQuizIndex < currentQuizData.questions.length - 1) {
+                currentQuizIndex++;
+                renderQuestion();
+            }
+        }
+
+        function prevQuestion() {
+            saveAnswer();
+            if (currentQuizIndex > 0) {
+                currentQuizIndex--;
+                renderQuestion();
+            }
+        }
+
+        function saveAnswer() {
+            const selected = document.querySelector(`input[name="q-${currentQuizIndex}"]:checked`);
+            if (selected) {
+                userAnswers[currentQuizIndex] = selected.value;
+            }
+        }
+
+        function submitQuiz() {
+            saveAnswer(); // Save the answer for the final question
+            let score = 0;
+            let resultsHtml = '';
+
+            currentQuizData.questions.forEach((q, i) => {
+                const userAnswerIndex = userAnswers[i];
+                const correctAnswerIndex = q.correct;
+                const isCorrect = (userAnswerIndex !== undefined && userAnswerIndex == correctAnswerIndex);
+                
+                if (isCorrect) {
+                    score++;
+                }
+
+                resultsHtml += `
+                    <p><strong>Question ${i + 1}:</strong> ${q.question}</p>
+                    <p>Your answer: ${userAnswerIndex !== undefined ? q.options[userAnswerIndex] : 'Not answered'}</p>
+                    <p class="correct-label">Correct answer: ${q.options[correctAnswerIndex]}</p>
+                    <hr>
+                `;
+            });
+
+            document.getElementById('final-score').textContent = `You scored ${score} out of ${currentQuizData.questions.length}!`;
+            document.getElementById('correct-answers-display').innerHTML = resultsHtml;
+            showSection('results-section');
+        }
+
+        // Initial setup
+        addQuestion();
+        renderQuizList();
+    </script>
+</body>
+</html>
